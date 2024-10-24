@@ -1,0 +1,39 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  # Lint source code
+  - repo: local
+    hooks:
+      - id: format
+        name: format
+        entry: bash -c 'make format' # Just format the code without checking the output
+        language: system
+        types: [python]
+        pass_filenames: false
+  # Format source code
+  - repo: local
+    hooks:
+      - id: lint
+        name: lint
+        entry: "make lint"
+        language: system
+        types: [python]
+        pass_filenames: false
+  # Check typing
+  - repo: local
+    hooks:
+      - id: typing
+        name: typing
+        entry: "make typing"
+        language: system
+        types: [python]
+        pass_filenames: false
+  # Generate envvars file
+  - repo: local
+    hooks:
+      - id: envvars
+        name: envvars
+        entry: "bash scripts/generate_envvars.sh"
+        language: system
+        types: [python]
+        pass_filenames: false

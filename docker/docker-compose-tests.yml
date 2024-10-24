@@ -1,0 +1,20 @@
+version: "3.7"
+
+services:
+  tests:
+    build:
+      context: ..
+      dockerfile: ./docker/ci.DockerFile
+      args:
+        PYTHON_VERSION: $PYTHON_VERSION
+    environment:
+      - SKIP_STARTUP_SERVICE_INFO_REPORT=true
+    working_dir: /project
+    command: sh -c '/project/run_tests.sh'
+    volumes:
+      - ${PWD}/reports:/project/reports/
+    networks:
+      - modules-test
+
+networks:
+  modules-test:

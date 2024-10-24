@@ -1,42 +1,75 @@
-LOCAL_ENV ?= .venv
-PYTHON_VERSION ?= python3.10
+COMPOSE_FILE=docker/docker-compose-tests.yml
+COMPOSE_BINARY=docker-compose
+ifeq (, $(shell which docker-compose))
+COMPOSE_BINARY=docker compose
+endif
+COMPOSE_COMMAND=${COMPOSE_BINARY} --env-file .env -f '${COMPOSE_FILE}'
+CI_COMMIT_REF_SLUG ?= latest
 
-dev-install:
-	pip install --upgrade pip
-	pip install virtualenv
-	test -d ${LOCAL_ENV} || (echo 'create ${LOCAL_ENV}';${PYTHON_VERSION} -m virtualenv ${LOCAL_ENV})
-	. ${LOCAL_ENV}/bin/activate ; ${LOCAL_ENV}/bin/${PYTHON_VERSION} -m pip install --upgrade pip
-	. ${LOCAL_ENV}/bin/activate ; ${LOCAL_ENV}/bin/${PYTHON_VERSION} -m pip install -r requirements_dev.txt
-	. ${LOCAL_ENV}/bin/activate ; ${LOCAL_ENV}/bin/${PYTHON_VERSION} -m pip install -r requirements.txt
+SRCS := project tests
+MYPY_SRCS := project tests
 
-lint/isort:
-	${LOCAL_ENV}/bin/isort .
+.PHONY: help
+help: ## show this help
+	@grep -E '^[a-zA-Z1-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-30s - %s\n", $$1, $$2}'
 
-lint/flake8:
-	${LOCAL_ENV}/bin/flake8 .
+.PHONY: install-hooks
+install-hooks: ## Install git hooks
+	@poetry run pre-commit install
 
-lint/black:
-	${LOCAL_ENV}/bin/black .
+.PHONY: uninstall-hooks
+uninstall-hooks: ## Install git hooks
+	@poetry run pre-commit uninstall
 
-lint/mypy:
-	mkdir -p .mypy_cache/
-	${LOCAL_ENV}/bin/mypy --install-types --non-interactive .
+.PHONY: envvars
+envvars: ## Regenerate ENVVARS files
+	@./scripts/generate_envvars.sh
 
-lint/bandit:
-	${LOCAL_ENV}/bin/bandit  -c .bandit  -r .
+.PHONY: lint flake8
+lint: ## check code violations using flake8
+	@echo >&2 Linting with flake8...
+	@poetry run flake8 \
+		$(SRCS)
+flake8: lint
 
-lint/safety:
-	${LOCAL_ENV}/bin/safety check -i 42194 -i 44715 -i 51668 --full-report
+.PHONY: format
+format: ## format source code using isort/black
+	@echo >&2 Formatting with black...
+	@poetry run isort \
+		$(SRCS)
+	@poetry run black \
+		$(SRCS)
 
-lint: lint/mypy lint/black lint/isort lint/flake8 lint/bandit lint/safety lint/licences
+.PHONY: format-check
+format-check: ## check source code formatting using isort/black
+	@poetry run isort --check \
+		$(SRCS)
+	@poetry run black --check \
+		$(SRCS)
 
-test:
-	${LOCAL_ENV}/bin/pytest -vvv tests
+.PHONY: check
+check: ## poetry checks
+	@poetry check
 
-test-all: lint test
+.PHONY: typing mypy
+typing: ## check typing using mypy
+	@echo >&2 Checking types with mypy...
+	@poetry run dmypy run $(MYPY_SRCS)
+mypy: typing
 
-coverage:
-	${LOCAL_ENV}/bin/coverage run --source . -m pytest -vvv tests
-	${LOCAL_ENV}/bin/coverage report -m
-	${LOCAL_ENV}/bin/coverage html
-	$(BROWSER) htmlcov/index.html
+.PHONY: tests
+tests: ## run unit tests
+	@echo >&2 Running tests...
+	${COMPOSE_COMMAND} build tests
+	${COMPOSE_COMMAND} run --rm --name project-tests tests
+	${COMPOSE_COMMAND} down --remove-orphans --timeout 0
+
+.PHONY: coverage
+coverage: ## run tests locally with coverage
+	@echo >&2 Running coverage...
+	./docker/run_tests.sh
+
+.PHONY: down
+down: ## down docker tests stack
+	@echo >&2 Stopping docker tests stack...
+	${COMPOSE_COMMAND} down -v

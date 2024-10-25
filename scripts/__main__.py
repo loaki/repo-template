@@ -1,7 +1,7 @@
 import typer
 
 from project import settings
-from project.introspection import extract__all__from_submodules
+from scripts.introspection import extract__all__from_submodules
 
 
 app = typer.Typer()

@@ -1,3 +1,0 @@
-{"key": "LOG_LEVEL", "description": "Log level (DEBUG, INFO, WARNING), default: DEBUG", "additional_columns": {}}
-{"key": "LOG_MODE", "description": "Log mode (local, production), default: local", "additional_columns": {}}
-

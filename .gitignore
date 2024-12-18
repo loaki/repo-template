@@ -6,7 +6,7 @@ build
 .dmypy.json
 release/
 image-release/
-.env.local
+.env
 .vscode/secrets.env
 reports/
 .coverage
